@@ -50,4 +50,3 @@ python src/benchmark_cpu_gpu.py
 默认对同一划分、同一 MLP、同一 batch size 和学习率，各运行 CPU/GPU 300 轮并重复 3 次；正式计时前各做 5 轮预热，并在 GPU 计时前后同步 CUDA。计时从数据已放到设备后开始，反映训练循环时间，不含一次性数据传输。结果保存到 `results/cpu_gpu_benchmark_runs.csv`、`results/cpu_gpu_benchmark_summary.csv` 和 `figures/cpu_gpu_training_time.png`。网络较小，GPU 不一定更快，实际结论以本机测量为准。
 
 本机一次正式测量结果（300 轮，3 次）：CPU 平均 3.065 秒（标准差 0.049），MX570 GPU 平均 7.275 秒（标准差 0.254）；该小网络的 CPU 约快 2.37 倍。两设备测试 RMSE 均值分别为 6.739 和 6.661 MPa，接近。该速度结论只适用于当前硬件、PyTorch 环境和小规模模型。
-Test line for revert.
