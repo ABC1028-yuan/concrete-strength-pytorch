@@ -1,0 +1,3 @@
+﻿device,device_name,repeats,epochs,mean_seconds,std_seconds,mean_test_RMSE_MPa,std_test_RMSE_MPa
+CPU,CPU,3,300,3.064529,0.049432,6.738928,0.174908
+GPU,NVIDIA GeForce MX570,3,300,7.275090,0.253833,6.660591,0.093038

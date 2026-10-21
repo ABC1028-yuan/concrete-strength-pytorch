@@ -1,0 +1,26 @@
+{
+  "source_file": "data/raw/Concrete_Data.xls",
+  "dataset_id": 165,
+  "n_samples": 1030,
+  "n_features": 8,
+  "split_seed": 42,
+  "training_seed": 42,
+  "split_sizes": {
+    "train": 618,
+    "validation": 206,
+    "test": 206
+  },
+  "model": "MLP 8-32-16-1 with ReLU",
+  "optimizer": "Adam",
+  "learning_rate": 0.001,
+  "batch_size": 32,
+  "max_epochs": 300,
+  "best_epoch": 292,
+  "best_validation_rmse_mpa": 6.385022232626353,
+  "device": "cpu",
+  "python": "3.13.3",
+  "pandas": "3.0.6",
+  "numpy": "2.5.4",
+  "torch": "2.14.1+cpu",
+  "scikit_learn": "1.9.1"
+}
