@@ -37,10 +37,9 @@ BATCH_SIZE = 32
 CONFIGS = [
     {"name": "baseline", "standardize": True, "hidden": (32, 16), "lr": 0.001},
     {"name": "no_standardization", "standardize": False, "hidden": (32, 16), "lr": 0.001},
-    {"name": "hidden_16", "standardize": True, "hidden": (16,), "lr": 0.001},
-    {"name": "hidden_64_32", "standardize": True, "hidden": (64, 32), "lr": 0.001},
-    {"name": "lr_0.0005", "standardize": True, "hidden": (32, 16), "lr": 0.0005},
-    {"name": "lr_0.002", "standardize": True, "hidden": (32, 16), "lr": 0.002},
+    {"name": "single_hidden_32", "standardize": True, "hidden": (32,), "lr": 0.001},
+    {"name": "narrow_16_8", "standardize": True, "hidden": (16, 8), "lr": 0.001},
+    {"name": "lr_0.01", "standardize": True, "hidden": (32, 16), "lr": 0.01},
 ]
 
 
@@ -100,6 +99,7 @@ def run_one(frame, config, seed, split):
     best_val_rmse = float("inf")
     best_state = None
     best_epoch = 0
+    validation_curve = []
     tx_val = torch.from_numpy(x_val)
     ty_val = y_val_np.ravel()
     for epoch in range(1, MAX_EPOCHS + 1):
@@ -114,6 +114,7 @@ def run_one(frame, config, seed, split):
         with torch.no_grad():
             val_pred = model(tx_val).numpy().ravel()
         val_rmse = float(np.sqrt(mean_squared_error(ty_val, val_pred)))
+        validation_curve.append(val_rmse)
         if val_rmse < best_val_rmse:
             best_val_rmse = val_rmse
             best_epoch = epoch
@@ -123,7 +124,7 @@ def run_one(frame, config, seed, split):
     model.eval()
     with torch.no_grad():
         test_pred = model(torch.from_numpy(x_test)).numpy().ravel()
-    return {
+    result = {
         "variant": config["name"], "seed": seed,
         "standardize": config["standardize"],
         "hidden_layers": "-".join(map(str, config["hidden"])),
@@ -131,6 +132,7 @@ def run_one(frame, config, seed, split):
         "best_val_RMSE_MPa": best_val_rmse,
         **score(y_test_np, test_pred),
     }
+    return result, validation_curve
 
 
 def main():
@@ -153,11 +155,14 @@ def main():
 
     torch.set_num_threads(1)
     rows = []
+    validation_curves = {}
     total = len(CONFIGS) * len(SEEDS)
     for index, config in enumerate(CONFIGS, 1):
         for seed in SEEDS:
-            result = run_one(frame, config, seed, split)
+            result, curve = run_one(frame, config, seed, split)
             rows.append(result)
+            if seed == 42:
+                validation_curves[config["name"]] = curve
             print(
                 f"[{len(rows)}/{total}] {config['name']} seed={seed}: "
                 f"test RMSE={result['test_RMSE_MPa']:.3f} MPa, "
@@ -172,6 +177,8 @@ def main():
 
     summary = detail.groupby("variant", sort=False).agg(
         seeds=("seed", "count"),
+        val_RMSE_mean_MPa=("best_val_RMSE_MPa", "mean"),
+        val_RMSE_std_MPa=("best_val_RMSE_MPa", "std"),
         MAE_mean_MPa=("test_MAE_MPa", "mean"),
         MAE_std_MPa=("test_MAE_MPa", "std"),
         RMSE_mean_MPa=("test_RMSE_MPa", "mean"),
@@ -182,6 +189,23 @@ def main():
     ).reset_index()
     summary_path = RESULTS / "ablation_summary.csv"
     summary.to_csv(summary_path, index=False, encoding="utf-8-sig", float_format="%.6f")
+
+    curve_frame = pd.DataFrame({"epoch": np.arange(1, MAX_EPOCHS + 1), **validation_curves})
+    curve_path = RESULTS / "ablation_validation_curves_seed42.csv"
+    curve_frame.to_csv(curve_path, index=False, encoding="utf-8-sig", float_format="%.6f")
+
+    plt.figure(figsize=(10, 5.5))
+    for name, values in validation_curves.items():
+        plt.plot(np.arange(1, len(values) + 1), values, label=name, linewidth=1.6)
+    plt.xlabel("Epoch")
+    plt.ylabel("Validation RMSE (MPa)")
+    plt.title("Validation RMSE Curves by Configuration (Seed 42)")
+    plt.grid(alpha=0.25)
+    plt.legend()
+    plt.tight_layout()
+    curve_figure_path = FIGURES / "ablation_val_curves_seed42.png"
+    plt.savefig(curve_figure_path, dpi=180)
+    plt.close()
 
     plt.figure(figsize=(10, 5.5))
     x = np.arange(len(summary))
@@ -202,7 +226,8 @@ def main():
     print(summary.to_string(index=False, float_format=lambda value: f"{value:.3f}"))
     print(f"\nDetailed runs: {detail_path}")
     print(f"Summary table: {summary_path}")
-    print(f"Comparison chart: {figure_path}")
+    print(f"Validation curves: {curve_figure_path}")
+    print(f"Test RMSE comparison chart: {figure_path}")
 
 
 if __name__ == "__main__":
